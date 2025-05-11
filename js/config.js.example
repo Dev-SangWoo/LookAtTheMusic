@@ -1,0 +1,29 @@
+/**
+ * 환경 설정 및 API 키 관리 (예제 파일)
+ * 사용 방법:
+ * 1. 이 파일을 'config.js'로 복사하세요
+ * 2. 아래 설정을 실제 값으로 수정하세요
+ * 3. config.js는 .gitignore에 추가하여 GitHub에 업로드되지 않도록 하세요
+ */
+
+const CONFIG = {
+    // YouTube API 키
+    YOUTUBE_API_KEY: 'YOUR_YOUTUBE_API_KEY_HERE', // 여기에 실제 YouTube API 키를 입력하세요
+    
+    // YouTube API URL
+    YOUTUBE_API_URL: 'https://www.googleapis.com/youtube/v3',
+    
+    // 기타 환경 설정
+    DEFAULT_SAMPLE_SIZE: 30,  // 대표색 추출 기본 샘플 크기
+    
+    // 개발/운영 환경 플래그
+    IS_DEVELOPMENT: true  // 개발 환경에서는 true, 운영 환경에서는 false
+};
+
+// 설정이 없는 경우 기본값 사용 (수정 불필요)
+const DEFAULT_CONFIG = {
+    YOUTUBE_API_KEY: '', // 설정되지 않음
+    YOUTUBE_API_URL: 'https://www.googleapis.com/youtube/v3',
+    DEFAULT_SAMPLE_SIZE: 30,
+    IS_DEVELOPMENT: false
+}; 

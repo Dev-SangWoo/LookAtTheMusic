@@ -1,0 +1,31 @@
+# 민감한 설정 파일
+js/config.js
+
+# 운영체제 파일
+.DS_Store
+Thumbs.db
+
+# 로그 파일
+*.log
+
+# 에디터 설정
+.vscode/
+.idea/
+*.sublime-*
+
+# 패키지 매니저
+node_modules/
+package-lock.json
+yarn.lock
+
+# 환경 변수
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 빌드 출력
+dist/
+build/
+out/ 

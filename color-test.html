@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대표색 추출 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-form {
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+        }
+        
+        .input-group button {
+            padding: 10px 15px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+        }
+        
+        .options {
+            margin-bottom: 15px;
+        }
+        
+        .options label {
+            margin-right: 10px;
+        }
+        
+        #test-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto 20px;
+            border-radius: 5px;
+        }
+        
+        .color-result {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+        
+        .color-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .color-swatch {
+            width: 100px;
+            height: 100px;
+            border-radius: 10px;
+            border: 3px solid #ddd;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+        
+        .color-info {
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .log-container {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .error {
+            color: #e74c3c;
+        }
+        
+        .warning {
+            color: #e67e22;
+        }
+        
+        .info {
+            color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>대표색 추출 테스트</h1>
+        
+        <div class="test-form">
+            <div class="input-group">
+                <input type="text" id="image-url" placeholder="이미지 URL 입력" value="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg">
+                <button id="test-btn">테스트</button>
+            </div>
+            
+            <div class="options">
+                <label>
+                    샘플 크기:
+                    <select id="sample-size">
+                        <option value="10">10 (빠름, 낮은 정확도)</option>
+                        <option value="20">20</option>
+                        <option value="30" selected>30</option>
+                        <option value="40">40</option>
+                        <option value="50">50 (느림, 높은 정확도)</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+        
+        <img id="test-image" src="" alt="테스트 이미지" style="display: none;">
+        
+        <div class="color-result" style="display: none;">
+            <h2>추출된 대표색</h2>
+            <div class="color-display">
+                <div class="color-swatch" id="color-swatch"></div>
+                <div class="color-info" id="color-hex"></div>
+            </div>
+            <p>이 색상은 이미지의 가장 지배적인 색상입니다.</p>
+        </div>
+        
+        <div class="log-container">
+            <div class="log-entry info">로그가 여기에 표시됩니다.</div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/colorExtractor.js"></script>
+    <script>
+        // 콘솔 로그 가로채기
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        const logContainer = document.querySelector('.log-container');
+        
+        // 로그 함수 덮어쓰기
+        console.log = function(...args) {
+            addLogEntry('info', args);
+            originalConsoleLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            addLogEntry('error', args);
+            originalConsoleError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            addLogEntry('warning', args);
+            originalConsoleWarn.apply(console, args);
+        };
+        
+        function addLogEntry(type, args) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 이미지 테스트 함수
+        function testImage() {
+            const imageUrl = document.getElementById('image-url').value;
+            const sampleSize = parseInt(document.getElementById('sample-size').value);
+            const testImage = document.getElementById('test-image');
+            const colorResult = document.querySelector('.color-result');
+            const colorSwatch = document.getElementById('color-swatch');
+            const colorHex = document.getElementById('color-hex');
+            
+            // 로그 초기화
+            logContainer.innerHTML = '';
+            addLogEntry('info', ['테스트 시작: ' + imageUrl]);
+            
+            // 이미지 로드
+            testImage.style.display = 'none';
+            colorResult.style.display = 'none';
+            
+            testImage.onload = function() {
+                testImage.style.display = 'block';
+                addLogEntry('info', ['이미지 로드 성공', testImage.naturalWidth + 'x' + testImage.naturalHeight]);
+                
+                // 색상 추출
+                ColorExtractor.extractDominantColor(imageUrl, (dominantColor) => {
+                    colorSwatch.style.backgroundColor = dominantColor;
+                    colorHex.textContent = dominantColor;
+                    colorHex.style.color = ColorExtractor.getTextColorForBackground(dominantColor);
+                    
+                    // 결과 표시
+                    colorResult.style.display = 'flex';
+                    colorResult.style.backgroundColor = dominantColor + '20'; // 알파값 추가
+                    
+                    addLogEntry('info', ['대표색 추출 완료:', dominantColor]);
+                }, sampleSize);
+            };
+            
+            testImage.onerror = function() {
+                addLogEntry('error', ['이미지 로드 실패']);
+            };
+            
+            testImage.src = imageUrl;
+        }
+        
+        // 이벤트 리스너
+        document.getElementById('test-btn').addEventListener('click', testImage);
+        document.getElementById('image-url').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                testImage();
+            }
+        });
+        
+        // 페이지 로드 시 기본 이미지 테스트
+        window.addEventListener('DOMContentLoaded', testImage);
+    </script>
+</body>
+</html> 
