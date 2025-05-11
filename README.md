@@ -68,23 +68,3 @@ Look-at-the-Music/
 └── styles/
     └── main.css           # 스타일시트
 ```
-
-## 기여 방법
-
-기여는 환영합니다! 다음 절차를 따라주세요:
-
-1. 이 저장소를 포크합니다.
-2. 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`).
-3. 변경사항을 커밋합니다 (`git commit -m 'Add amazing feature'`).
-4. 브랜치를 푸시합니다 (`git push origin feature/amazing-feature`).
-5. Pull Request를 생성합니다.
-
-## 라이선스
-
-MIT 라이선스에 따라 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
-
-## 감사의 말
-
-- YouTube Data API를 제공해 주는 Google에 감사드립니다.
-- 이미지 분석을 위한 HTML5 Canvas API.
-- 영감을 주신 모든 분들께 감사드립니다. 
