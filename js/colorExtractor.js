@@ -98,28 +98,39 @@ class ColorExtractor {
                 const b = imageData[i + 2];
                 const a = imageData[i + 3];
                 
-                // 완전히 투명한 픽셀이나 흰색/검정색 픽셀은 건너뛰기 (선택사항)
+                // 완전히 투명한 픽셀은 건너뛰기
                 if (a < 128) continue; // 투명한 픽셀 무시
                 
-                // 너무 밝거나 어두운 픽셀은 덜 중요하게 처리
+                // 너무 밝거나 어두운 픽셀 필터링 (덜 제한적)
                 const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                if (brightness > 240 || brightness < 10) continue; // 거의 흰색이나 검정색 무시
+                if (brightness > 250 || brightness < 5) continue; // 완전한 흰색이나 검정색만 무시
                 
-                // 색상 양자화 개선 (더 적은 범위로 그룹화)
-                const quantizedR = Math.floor(r / 16) * 16;
-                const quantizedG = Math.floor(g / 16) * 16;
-                const quantizedB = Math.floor(b / 16) * 16;
+                // 색상 양자화 (더 세밀한 그룹화)
+                const quantizedR = Math.floor(r / 8) * 8; // 16 -> 8로 변경하여 더 세밀하게
+                const quantizedG = Math.floor(g / 8) * 8;
+                const quantizedB = Math.floor(b / 8) * 8;
+                
+                // 색상의 가중치 계산 - 채도가 높은 색상에 더 높은 가중치 부여
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const chroma = max - min; // 채도 관련 요소
+                let weight = 1; // 기본 가중치
+                
+                // 색상이 더 선명할수록 가중치 증가
+                if (chroma > 50) weight = 1.5;
+                if (chroma > 100) weight = 2;
                 
                 const colorKey = `${quantizedR},${quantizedG},${quantizedB}`;
                 
                 if (colorMap[colorKey]) {
-                    colorMap[colorKey].count++;
+                    colorMap[colorKey].count += weight;
                 } else {
                     colorMap[colorKey] = {
-                        count: 1,
+                        count: weight,
                         r: quantizedR,
                         g: quantizedG,
-                        b: quantizedB
+                        b: quantizedB,
+                        chroma: chroma   // 채도 정보 저장
                     };
                 }
                 
@@ -134,28 +145,39 @@ class ColorExtractor {
                 return '#444444';
             }
             
-            // 가장 많이 발생한 색상 찾기 (최소 3% 이상 발생한 색상 중에서)
-            let dominantColor = null;
-            let maxCount = 0;
-            const threshold = totalPixels * 0.03; // 최소 3% 이상 차지해야 함
+            // 상위 색상 5개 추출
+            const sortedColors = Object.values(colorMap).sort((a, b) => b.count - a.count);
+            const topColors = sortedColors.slice(0, 5);
             
-            for (const colorKey in colorMap) {
-                if (colorMap[colorKey].count > maxCount && colorMap[colorKey].count >= threshold) {
-                    maxCount = colorMap[colorKey].count;
-                    dominantColor = colorMap[colorKey];
+            console.log('상위 5개 색상:', topColors);
+            
+            // 선택 기준 1: 가장 많이 발생한 색상 (최소 임계값 1.5%로 낮춤)
+            let dominantColor = null;
+            const threshold = totalPixels * 0.015; // 1.5%로 낮춤
+            
+            for (const color of topColors) {
+                if (color.count >= threshold) {
+                    // 이미 찾은 dominantColor가 있고, 현재 색상보다 채도가 높다면 유지
+                    if (dominantColor && dominantColor.chroma > color.chroma * 1.5) {
+                        continue;
+                    }
+                    dominantColor = color;
+                    // 채도가 높은 색상을 찾았다면 바로 선택
+                    if (color.chroma > 70) break;
                 }
             }
             
             // 지배적인 색상이 발견되지 않았다면
             if (!dominantColor) {
-                console.warn('지배적인 색상을 찾지 못했습니다. 임계값 없이 가장 많은 색상 사용');
+                console.warn('임계값 기준 대표색을 찾지 못했습니다. 가장 많은 색상 사용');
                 
-                // 임계값 없이 다시 시도
-                for (const colorKey in colorMap) {
-                    if (colorMap[colorKey].count > maxCount) {
-                        maxCount = colorMap[colorKey].count;
-                        dominantColor = colorMap[colorKey];
-                    }
+                // 채도를 고려하여 선택
+                // 상위 3개 중에서 채도가 가장 높은 색상 선택
+                dominantColor = topColors.slice(0, 3).sort((a, b) => b.chroma - a.chroma)[0];
+                
+                // 그래도 없다면 가장 빈도가 높은 색상 선택
+                if (!dominantColor) {
+                    dominantColor = topColors[0];
                 }
             }
             

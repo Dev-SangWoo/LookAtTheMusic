@@ -203,6 +203,37 @@ function playVideoDirectly(videoId, snippet) {
     }
 }
 
+// 썸네일 URL 확인 및 조회 함수 개선 (여백 없는 16:9 비율 썸네일 우선)
+async function getBestThumbnailUrl(videoId) {
+    console.log('썸네일 조회 시작:', videoId);
+    
+    if (!videoId) return null;
+    
+    // 썸네일 URL 후보들 (우선순위 순)
+    const candidates = [
+        `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`, // 1280x720 (16:9, 최고화질)
+        `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,     // 320x180 (16:9, 중간화질)
+        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`      // 480x360 (4:3, 검은색 여백 있음)
+    ];
+    
+    // 각 URL을 순서대로 시도하여 사용 가능한 첫 번째 URL 반환
+    for (const url of candidates) {
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            if (response.ok) {
+                console.log('사용 가능한 썸네일 발견:', url);
+                return url;
+            }
+        } catch (error) {
+            console.log(`썸네일 조회 실패 (계속 진행): ${url}`, error);
+        }
+    }
+    
+    // 모든 URL이 실패한 경우 기본 URL 반환
+    console.log('모든 썸네일 URL이 실패하여 기본 URL 사용');
+    return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
 // 현재 재생 중인 곡 정보 업데이트
 function updateNowPlaying(snippet) {
     const trackTitle = document.getElementById('track-title');
@@ -214,7 +245,15 @@ function updateNowPlaying(snippet) {
     trackTitle.textContent = snippet.title;
     trackArtist.textContent = snippet.channelTitle;
     
-    // 썸네일 URL 확인
+    // 비디오 ID 추출
+    let videoId = '';
+    if (snippet.resourceId && snippet.resourceId.videoId) {
+        videoId = snippet.resourceId.videoId;
+    } else if (currentVideoId) {
+        videoId = currentVideoId;
+    }
+    
+    // 썸네일 URL 확인 (기존 방식을 백업으로 유지)
     let thumbnailUrl = '';
     if (snippet.thumbnails) {
         if (snippet.thumbnails.high && snippet.thumbnails.high.url) {
@@ -231,27 +270,57 @@ function updateNowPlaying(snippet) {
         thumbnailUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23333"/%3E%3C/svg%3E';
     }
     
-    // 앨범 아트 설정
-    albumArt.style.backgroundImage = `url(${thumbnailUrl})`;
+    // 가능한 경우 여백이 없는 16:9 비율 썸네일을 시도
+    if (videoId) {
+        getBestThumbnailUrl(videoId).then(betterThumbnail => {
+            if (betterThumbnail) {
+                // 여백 없는 고품질 썸네일이 있으면 사용
+                albumArt.src = betterThumbnail;
+                console.log('개선된 썸네일 사용:', betterThumbnail);
+                
+                // 색상 추출은 고품질 썸네일에서 수행
+                extractDominantColor(betterThumbnail, albumArt, colorSample, colorCode);
+            } else {
+                // 개선된 썸네일을 가져오지 못한 경우 기존 썸네일 사용
+                albumArt.src = thumbnailUrl;
+                console.log('기존 썸네일 사용:', thumbnailUrl);
+                
+                // 색상 추출
+                extractDominantColor(thumbnailUrl, albumArt, colorSample, colorCode);
+            }
+        }).catch(error => {
+            // 오류 발생 시 기존 썸네일 사용
+            console.error('개선된 썸네일 가져오기 실패:', error);
+            albumArt.src = thumbnailUrl;
+            
+            // 색상 추출
+            extractDominantColor(thumbnailUrl, albumArt, colorSample, colorCode);
+        });
+    } else {
+        // 비디오 ID를 추출할 수 없는 경우 기존 썸네일 사용
+        albumArt.src = thumbnailUrl;
+        
+        // 색상 추출
+        extractDominantColor(thumbnailUrl, albumArt, colorSample, colorCode);
+    }
     
-    // 대표색 추출 전에 테스트 실행 (선택적)
-    // ColorExtractor.testColorExtraction(thumbnailUrl);
-    
-    // 썸네일에서 대표색 추출
-    console.log('대표색 추출 시작:', thumbnailUrl);
-    
+    // 검색 결과 축소 (선택사항)
+    const searchResults = document.getElementById('search-results');
+    if (searchResults) {
+        searchResults.style.maxHeight = '150px';
+    }
+}
+
+// 색상 추출 로직을 별도 함수로 분리
+function extractDominantColor(thumbnailUrl, albumArt, colorSample, colorCode) {
     try {
-        // 샘플 크기를 더 크게 설정 (정확도 향상)
+        // 샘플 크기를 크게 설정하여 정확도 대폭 향상 (처리 시간은 증가)
         ColorExtractor.extractDominantColor(thumbnailUrl, (dominantColor) => {
             console.log('추출된 대표색:', dominantColor);
             
             // 대표색 표시
             if (colorSample) {
                 colorSample.style.backgroundColor = dominantColor;
-                
-                // 추출된 색상을 더 명확하게 확인하기 위해 크기 증가 (선택적)
-                // colorSample.style.width = '30px';
-                // colorSample.style.height = '30px';
             }
             
             if (colorCode) {
@@ -264,18 +333,14 @@ function updateNowPlaying(snippet) {
             
             // 앨범 아트 테두리 색상 변경
             if (albumArt) {
-                albumArt.style.borderColor = dominantColor;
-                albumArt.style.boxShadow = `0 4px 20px ${dominantColor}80`; // 알파값 추가
+                const albumArtContainer = document.querySelector('.album-art-container');
+                if (albumArtContainer) {
+                    albumArtContainer.style.boxShadow = `0 4px 20px ${dominantColor}80`; // 알파값 추가
+                }
             }
-        }, 30); // 샘플 크기 증가
+        }, 100); // 샘플 크기 대폭 증가 (30 -> 100)
     } catch (error) {
         console.error('대표색 추출 과정에서 오류 발생:', error);
-    }
-    
-    // 검색 결과 축소 (선택사항)
-    const searchResults = document.getElementById('search-results');
-    if (searchResults) {
-        searchResults.style.maxHeight = '150px';
     }
 }
 
@@ -304,16 +369,116 @@ function togglePlay() {
 // 집중 모드 진입 함수
 function enterFocusMode() {
     document.body.classList.add('focus-mode');
+    
+    // 현재 추출된 대표색 가져오기
+    const colorSample = document.querySelector('.color-sample');
+    const mainSection = document.querySelector('main');
+    
+    if (colorSample && colorSample.style.backgroundColor && mainSection) {
+        // 배경색을 직접 main 요소에 적용 (70% 불투명도)
+        let bgColor = colorSample.style.backgroundColor;
+        // rgba 형식이면 불투명도 조정, #hex 형식이면 변환
+        if (bgColor.startsWith('rgb')) {
+            if (bgColor.startsWith('rgba')) {
+                // 이미 알파값이 있으면 그냥 사용
+                mainSection.style.background = bgColor;
+            } else {
+                // rgb에서 rgba로 변환하여 70% 불투명도 적용
+                bgColor = bgColor.replace('rgb', 'rgba').replace(')', ', 0.7)');
+                mainSection.style.background = bgColor;
+            }
+        } else {
+            // hex 형식이면 그냥 사용하고 나중에 CSS에서 불투명도 조정
+            mainSection.style.background = bgColor;
+        }
+    }
+    
+    // 전체 화면 모드 진입
+    try {
+        // 브라우저별 전체 화면 API 호출
+        const docEl = document.documentElement;
+        
+        if (docEl.requestFullscreen) {
+            docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) { // Safari
+            docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) { // IE11
+            docEl.msRequestFullscreen();
+        }
+        
+        console.log('전체 화면 모드 시작');
+    } catch (error) {
+        console.error('전체 화면 모드 진입 중 오류:', error);
+    }
+    
     // 아무 곳이나 클릭하면 해제
     setTimeout(() => { // setTimeout으로 버튼 클릭 이벤트와 겹치지 않게
         document.addEventListener('click', exitFocusModeHandler);
     }, 10);
+    
+    // ESC 키로 전체 화면이 종료될 때 집중 모드도 같이 종료되도록
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+}
+
+// 전체 화면 변경 이벤트 핸들러
+function handleFullscreenChange() {
+    // 전체 화면 상태 확인
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.msFullscreenElement) {
+        
+        // 전체 화면이 종료되었다면 집중 모드도 종료
+        if (document.body.classList.contains('focus-mode')) {
+            exitFocusModeHandler({ preventFullscreenExit: true });
+        }
+    }
 }
 
 // 집중 모드 해제 함수
 function exitFocusModeHandler(e) {
     document.body.classList.remove('focus-mode');
+    
+    // main 요소의 배경색 초기화
+    const mainSection = document.querySelector('main');
+    if (mainSection) {
+        mainSection.style.background = '';
+    }
+    
+    // 전체 화면 종료 (이미 종료되지 않았다면)
+    if (!e || !e.preventFullscreenExit) {
+        try {
+            if (document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.mozFullScreenElement || 
+                document.msFullscreenElement) {
+                
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                
+                console.log('전체 화면 모드 종료');
+            }
+        } catch (error) {
+            console.error('전체 화면 종료 중 오류:', error);
+        }
+    }
+    
+    // 이벤트 리스너 제거
     document.removeEventListener('click', exitFocusModeHandler);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
 }
 
 //---------------------------------------------------------------------------------
@@ -356,6 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusBtn = document.getElementById('focus-btn');
     if (focusBtn) {
         focusBtn.onclick = (e) => {
+            e.preventDefault(); // 링크의 기본 동작 방지
             e.stopPropagation(); // 버튼 클릭이 바로 해제 이벤트로 전달되지 않게
             enterFocusMode();
         };
