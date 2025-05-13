@@ -21,6 +21,7 @@
 - 앨범 아트와 추출된 색상을 활용한 배경 효과
 - 불필요한 UI 요소 숨김으로 집중력 향상
 - ESC 키 또는 화면 클릭으로 쉽게 종료
+- ![Image](https://github.com/user-attachments/assets/81a5d890-a0f0-42af-8170-f5b121fdfefc)
 
 ## 🚀 설치 및 설정
 
