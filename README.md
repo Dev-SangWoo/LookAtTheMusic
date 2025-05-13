@@ -3,7 +3,7 @@
 ![Look at the Music](https://img.shields.io/badge/Look%20at%20the%20Music-v1.0-blue)
 
 음악 감상과 함께 시각적인 경험을 제공하는 웹 기반 뮤직 플레이어입니다. YouTube 음악을 검색하고 재생하면서 앨범 아트의 대표색을 추출하여 UI에 적용합니다. '집중하기' 모드에서는 전체 화면으로 전환되어 음악과 색상에 몰입할 수 있는 환경을 제공합니다.
-
+![Image](https://github.com/user-attachments/assets/9697f861-b871-4053-be9c-2719dab82601)
 ## 🎵 주요 기능
 
 ### 음악 검색 및 재생
